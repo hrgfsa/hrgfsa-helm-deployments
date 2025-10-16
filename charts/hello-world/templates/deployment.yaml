@@ -1,23 +1,44 @@
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: hello-world-deployment
-  labels: 
-    app: hello-world
+  name: {{ include "hello-world.fullname" . }}-deployment
+  labels:
+    app: {{ .Values.selector.app }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: hello-world
+      app: {{ .Values.selector.app }}
   template:
     metadata:
-     name: hello-world-pod
-     labels:
-      app: hello-world
+      name: {{ include "hello-world.fullname" . }}-pod
+      labels:
+        app: {{ .Values.selector.app }}
     spec:
-     containers:
-      - name: hello-world
-        image: danklofan/hello-world:latest
-        ports:
-         - containerPort: 80
+      containers:
+        - name: {{ .Values.selector.app }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.containerPort }}
+
+          # ✅ Optional environment variables
+          {{- if .Values.env }}
+          env:
+            {{- toYaml .Values.env | nindent 12 }}
+          {{- end }}
+
+          # ✅ Optional health checks
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.containerPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.containerPort }}
+            initialDelaySeconds: 15
+            periodSeconds: 20
