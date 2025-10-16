@@ -1,45 +1,63 @@
-name: Deploy Helm Chart
+# --------------------------------------------------
+# Application Image Configuration
+# --------------------------------------------------
+image:
+  repository: danklofan/hello-world     # your Docker Hub repo
+  tag: latest                           # will be updated by CI
+  pullPolicy: IfNotPresent
 
-on:
-  workflow_dispatch:
-    inputs:
-      image_tag:
-        description: 'Docker image tag'
-        required: true
-        default: 'latest'
+# --------------------------------------------------
+# Deployment Settings
+# --------------------------------------------------
+replicaCount: 1
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout helm repo
-        uses: actions/checkout@v4
+containerPort: 80
 
-      - name: Set up Helm
-        uses: azure/setup-helm@v3
+selector:
+  app: hello-world
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: '1.27.3'
+env:                                    # optional environment variables
+  - name: ENVIRONMENT
+    value: "production"
+  - name: LOG_LEVEL
+    value: "info"
 
-      - name: Authenticate with GCP
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+# --------------------------------------------------
+# Service Configuration
+# --------------------------------------------------
+service:
+  type: NodePort                    # or NodePort / ClusterIP
+  port: 80
+  targetPort: 80
+  NodePort: 30008
 
-      - name: Get GKE credentials
-        run: |
-          gcloud container clusters get-credentials july-cluster \
-            --region asia-south1 \
-            --project secure-air-461520-g7
+# --------------------------------------------------
+# Ingress Configuration
+# --------------------------------------------------
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: "nginx"  # for GKE; change if using NGINX
+  hosts:
+    - host: hello.danklofan.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:                                  # optional TLS
+    - hosts:
+        - hello.danklofan.com
+      secretName: hello-world-tls
 
-      - name: Update Helm values with image tag
-        run: |
-          sed -i "s|tag:.*|tag: ${{ github.event.inputs.image_tag }}|" ./values.yaml
+# --------------------------------------------------
+# Resources (Optional - keep empty if not used)
+# --------------------------------------------------
+resources: {}
 
-      - name: Deploy Helm Chart
-        run: |
-          helm upgrade --install hello-world ./ \
-            --namespace prod \
-            --create-namespace
+# --------------------------------------------------
+# Autoscaling (Optional)
+# --------------------------------------------------
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80

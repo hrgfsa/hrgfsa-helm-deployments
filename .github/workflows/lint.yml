@@ -1,11 +1,45 @@
-name: lint yaml
-on: [ push, pull_request ]
-jobs: 
-   lint:
-      runs-on: ubuntu-latest
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v5
-        - name: Helm lint
-          run: |
-           helm lint charts/*
+name: Deploy Helm Chart
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag'
+        required: true
+        default: 'latest'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout helm repo
+        uses: actions/checkout@v5
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: '1.27.3'
+
+      - name: Authenticate with GCP
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Get GKE credentials
+        run: |
+          gcloud container clusters get-credentials autopilot-cluster-1 \
+            --region us-central1 \
+            --project natural-motif-469318-d4
+
+      - name: Update Helm values with image tag
+        run: |
+          sed -i "s|tag:.*|tag: ${{ github.event.inputs.image_tag }}|" ./values.yaml
+
+      - name: Deploy Helm Chart
+        run: |
+          helm upgrade --install hello-world ./ \
+            --namespace prod \
+            --create-namespace
