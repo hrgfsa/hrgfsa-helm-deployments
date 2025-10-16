@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: {{ include "hello-world.fullname" . }}-service
   labels:
-    app: {{ .Values.selector.app }}
+{{ include "hello-world.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   selector:
