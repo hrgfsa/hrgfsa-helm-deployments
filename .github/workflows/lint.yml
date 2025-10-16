@@ -38,4 +38,4 @@ jobs:
         helm upgrade --install hello-world ./charts/hello-world \
           --namespace hello-namespace \
           --create-namespace \
-          -f values/prod-values.yaml
+          -f values.yaml
