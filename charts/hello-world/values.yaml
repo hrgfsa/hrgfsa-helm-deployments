@@ -1,32 +1,45 @@
-replicaCount: 1
+name: Deploy Helm Chart
 
-image:
-  repository: danklofan/hello-world
-  tag: latest
-  pullPolicy: IfNotPresent
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag'
+        required: true
+        default: 'latest'
 
-containerPort: 80
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout helm repo
+        uses: actions/checkout@v4
 
-selector:
-  app: hello-world
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
 
-service:
-  type: ClusterIP   # or NodePort / ClusterIP
-  port: 80
-  targetPort: 80
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: '1.27.3'
 
-ingress:
-  enabled: true
-  annotations:
-    kubernetes.io/ingress.class: "nginx"       # GKE example
-  hosts:
-    - host: hello.danklofan.com
-      paths:
-        - path: /
-          pathType: Prefix
-  tls:
-    - hosts:
-        - hello.danklofan.com
-      secretName: hello-world-tls
+      - name: Authenticate with GCP
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
+      - name: Get GKE credentials
+        run: |
+          gcloud container clusters get-credentials july-cluster \
+            --region asia-south1 \
+            --project secure-air-461520-g7
 
+      - name: Update Helm values with image tag
+        run: |
+          sed -i "s|tag:.*|tag: ${{ github.event.inputs.image_tag }}|" ./values.yaml
+
+      - name: Deploy Helm Chart
+        run: |
+          helm upgrade --install hello-world ./ \
+            --namespace prod \
+            --create-namespace
