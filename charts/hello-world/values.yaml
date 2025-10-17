@@ -26,10 +26,9 @@ env:                                    # optional environment variables
 # Service Configuration
 # --------------------------------------------------
 service:
-  type: NodePort                    # or NodePort / ClusterIP
+  type: ClusterIP                    # or NodePort / ClusterIP
   port: 80
   targetPort: 80
-  NodePort: 30008
 
 # --------------------------------------------------
 # Ingress Configuration
